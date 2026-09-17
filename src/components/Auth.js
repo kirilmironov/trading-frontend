@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 
 // Използва .env за локална среда и автоматично превключва към Render в продакшън
-const API_BASE = process.env.REACT_APP_API_BASE || 'https://trading-backend-5s2w.onrender.com';
+const API_BASE = process.env.REACT_APP_API_BASE || 'https://trading-backend-5s2w.onrender.com/api';
 
 export default function Auth({ onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
