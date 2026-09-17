@@ -10,9 +10,11 @@ import Portfolio from './Portfolio';
 import OrderHistory from './OrderHistory';
 import '../App.css';
 
-// Взема адресите от локалния .env файл, а ако липсват (в Render), ползва пропудкционните
 const API_BASE = process.env.REACT_APP_API_BASE || 'https://trading-backend-5s2w.onrender.com/api';
-const WS_URL = process.env.REACT_APP_WS_URL || 'https://trading-backend-5s2w.onrender.com/ws-trading';
+
+// Уверяваме се, че ако .env съдържа ws:// или wss://, го преобразуваме към http/https за SockJS
+const rawWsUrl = process.env.REACT_APP_WS_URL || 'https://trading-backend-5s2w.onrender.com/ws-trading';
+const WS_URL = rawWsUrl.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://').replace(/\/websocket$/, '');
 
 export default function App() {
   const [user, setUser] = useState(null);
