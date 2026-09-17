@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 import axios from 'axios';
 import Auth from './Auth';
 import PriceChart from './PriceChart';
@@ -9,10 +10,9 @@ import Portfolio from './Portfolio';
 import OrderHistory from './OrderHistory';
 import '../App.css';
 
-// Използва променливите от .env файла за локална среда,
-// а в Render (където няма .env) автоматично превключва към облачните адреси.
+// Взема адресите от локалния .env файл, а ако липсват (в Render), ползва пропудкционните
 const API_BASE = process.env.REACT_APP_API_BASE || 'https://trading-backend-5s2w.onrender.com/api';
-const WS_URL = process.env.REACT_APP_WS_URL || 'wss://trading-backend-5s2w.onrender.com/ws-trading/websocket';
+const WS_URL = process.env.REACT_APP_WS_URL || 'https://trading-backend-5s2w.onrender.com/ws-trading';
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -65,9 +65,11 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
+    // Използваме webSocketFactory с SockJS за стабилна връзка в production и local
     const client = new Client({
-      brokerURL: WS_URL,
+      webSocketFactory: () => new SockJS(WS_URL),
       reconnectDelay: 3000,
+      debug: () => {},
       onConnect: () => {
         client.subscribe('/topic/ticks', (msg) => {
           if (!msg.body) return;
