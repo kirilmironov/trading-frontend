@@ -10,11 +10,13 @@ import Portfolio from './Portfolio';
 import OrderHistory from './OrderHistory';
 import '../App.css';
 
-const API_BASE = process.env.REACT_APP_API_BASE || 'https://trading-backend-5s2w.onrender.com/api';
+const API_BASE = window.location.hostname === 'localhost'
+  ? (process.env.REACT_APP_API_BASE || 'http://localhost:8080/api')
+  : 'https://trading-backend-5s2w.onrender.com/api';
 
-// Уверяваме се, че ако .env съдържа ws:// или wss://, го преобразуваме към http/https за SockJS
-const rawWsUrl = process.env.REACT_APP_WS_URL || 'https://trading-backend-5s2w.onrender.com/ws-trading';
-const WS_URL = rawWsUrl.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://').replace(/\/websocket$/, '');
+const WS_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:8080/ws-trading'
+  : 'https://trading-backend-5s2w.onrender.com/ws-trading';
 
 export default function App() {
   const [user, setUser] = useState(null);
