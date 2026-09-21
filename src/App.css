@@ -79,3 +79,27 @@ code {
   scrollbar-width: thin;
   scrollbar-color: #2b313a #1e2329;
 }
+
+/* ==========================================
+   MOBILE RESPONSIVE OPTIMIZATIONS
+   ========================================== */
+
+@media (max-width: 768px) {
+  /* Предотвратява хоризонтален скрол на цялата страница */
+  html, body {
+    overflow-x: hidden;
+  }
+
+  /* Прави всички таблици скролваеми хоризонтално при тесен екран */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Намалява шрифта и отстъпите за бутони и входове на телефон */
+  input, select, button {
+    font-size: 14px !important;
+  }
+}

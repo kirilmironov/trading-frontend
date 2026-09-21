@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-// Използва .env за локална среда и автоматично превключва към Render в продакшън
-const API_BASE = process.env.REACT_APP_API_BASE || 'https://trading-backend-5s2w.onrender.com/api';
+// Използваме същата логика за автоматично разпознаване на средата, както в App.js
+const API_BASE = window.location.hostname === 'localhost'
+  ? (process.env.REACT_APP_API_BASE || 'http://localhost:8080/api')
+  : 'https://trading-backend-5s2w.onrender.com/api';
 
 export default function Auth({ onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -104,6 +106,8 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#121214',
+    padding: '16px', // Пад за мобилен екран
+    boxSizing: 'border-box',
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   },
   card: {
@@ -111,10 +115,11 @@ const styles = {
     maxWidth: '400px',
     backgroundColor: '#1e2329',
     borderRadius: '16px',
-    padding: '40px 32px',
+    padding: '32px 24px', // Оптимизирани отстъпи
     border: '1px solid #2b313a',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
     textAlign: 'center',
+    boxSizing: 'border-box',
   },
   iconBadge: {
     fontSize: '32px',

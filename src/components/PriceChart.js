@@ -15,19 +15,23 @@ export default function PriceChart({ symbol, currentPrice }) {
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#ffffff' },
-        textColor: '#334155',
+        background: { type: ColorType.Solid, color: '#181a20' }, // Тъмносив/черен фон
+        textColor: '#848e9c', // Светлосив цвят за цифрите и скалите
       },
       width: chartContainerRef.current.clientWidth,
       height: 350,
       grid: {
-        vertLines: { color: '#f1f5f9' },
-        horzLines: { color: '#f1f5f9' },
+        vertLines: { color: '#2b313a' }, // Тъмни линии на решетката
+        horzLines: { color: '#2b313a' },
+      },
+      rightPriceScale: {
+        borderColor: '#2b313a',
       },
       timeScale: {
+        borderColor: '#2b313a',
         timeVisible: true,
         secondsVisible: false,
-        // Форматираме UTC timestamp-а към локалното време на потребителя (България UTC+3)
+        // Форматираме UTC timestamp-а към локалното време на потребителя
         tickMarkFormatter: (time) => {
           const date = new Date(time * 1000);
           return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -42,11 +46,11 @@ export default function PriceChart({ symbol, currentPrice }) {
     });
 
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#10b981',
-      downColor: '#ef4444',
+      upColor: '#0ecb81',       // Ярко зелено за бичи свещи
+      downColor: '#f6465d',     // Червено за мечи свещи
       borderVisible: false,
-      wickUpColor: '#10b981',
-      wickDownColor: '#ef4444',
+      wickUpColor: '#0ecb81',
+      wickDownColor: '#f6465d',
     });
 
     chartRef.current = chart;
@@ -151,8 +155,8 @@ export default function PriceChart({ symbol, currentPrice }) {
   return (
     <div style={{ position: 'relative', width: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <h4 style={{ margin: 0, fontSize: '15px', color: '#0f172a' }}>📈 {symbol} Real-Time Chart</h4>
-        <span style={{ fontSize: '14px', fontWeight: '700', color: '#10b981' }}>
+        <h4 style={{ margin: 0, fontSize: '15px', color: '#eaecef' }}>📈 {symbol} Real-Time Chart</h4>
+        <span style={{ fontSize: '14px', fontWeight: '700', color: '#0ecb81' }}>
           {!isNaN(numericPrice) ? `$${numericPrice.toFixed(2)}` : '—'}
         </span>
       </div>

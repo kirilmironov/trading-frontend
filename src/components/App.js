@@ -69,7 +69,6 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
-    // Използваме webSocketFactory с SockJS за стабилна връзка в production и local
     const client = new Client({
       webSocketFactory: () => new SockJS(WS_URL),
       reconnectDelay: 3000,
@@ -129,10 +128,10 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
           <div style={styles.balanceCard}>
             <span style={{ fontSize: '12px', color: '#848e9c', fontWeight: '600' }}>BALANCE</span>
-            <span style={{ fontSize: '20px', fontWeight: '700', color: '#f0b90b' }}>
+            <span style={{ fontSize: '18px', fontWeight: '700', color: '#f0b90b' }}>
               ${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
@@ -146,11 +145,11 @@ export default function App() {
       {/* Notification Banner */}
       {notification && <div style={styles.notificationBanner}>✅ {notification}</div>}
 
-      {/* Dashboard Grid */}
+      {/* Dashboard Grid - Адаптивна решетка */}
       <div style={styles.dashboardGrid}>
         
         {/* Лява колона */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <Portfolio orders={orders} stocks={stocks} />
 
           <div style={styles.card}>
@@ -172,19 +171,81 @@ export default function App() {
       </div>
 
       {/* Долна секция: История на поръчките */}
-      <OrderHistory orders={orders} onCancelOrder={handleCancelOrder} />
+      <div style={{ marginTop: '20px' }}>
+        <OrderHistory orders={orders} onCancelOrder={handleCancelOrder} />
+      </div>
 
     </div>
   );
 }
 
 const styles = {
-  mainWrapper: { backgroundColor: '#121214', color: '#eaecef', minHeight: '100vh', padding: '24px 40px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1e2329', padding: '16px 24px', borderRadius: '12px', marginBottom: '24px', border: '1px solid #2b313a' },
-  logoBadge: { width: '40px', height: '40px', backgroundColor: '#f0b90b', color: '#121214', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 'bold' },
-  balanceCard: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end', backgroundColor: '#2b313a', padding: '8px 16px', borderRadius: '10px' },
-  logoutBtn: { backgroundColor: 'transparent', color: '#f6465d', border: '1px solid #f6465d', padding: '10px 18px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: '0.2s' },
-  dashboardGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' },
-  card: { backgroundColor: '#1e2329', borderRadius: '12px', padding: '24px', border: '1px solid #2b313a' },
-  notificationBanner: { backgroundColor: '#0ecb8122', color: '#0ecb81', border: '1px solid #0ecb81', padding: '14px 20px', borderRadius: '10px', marginBottom: '24px', fontWeight: '600' }
+  mainWrapper: { 
+    backgroundColor: '#121214', 
+    color: '#eaecef', 
+    minHeight: '100vh', 
+    padding: '16px', 
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' 
+  },
+  header: { 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    flexWrap: 'wrap',
+    gap: '12px',
+    backgroundColor: '#1e2329', 
+    padding: '12px 16px', 
+    borderRadius: '12px', 
+    marginBottom: '20px', 
+    border: '1px solid #2b313a' 
+  },
+  logoBadge: { 
+    width: '36px', 
+    height: '36px', 
+    backgroundColor: '#f0b90b', 
+    color: '#121214', 
+    borderRadius: '8px', 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    fontSize: '18px', 
+    fontWeight: 'bold' 
+  },
+  balanceCard: { 
+    display: 'flex', 
+    flexDirection: 'column', 
+    alignItems: 'flex-end', 
+    backgroundColor: '#2b313a', 
+    padding: '6px 12px', 
+    borderRadius: '8px' 
+  },
+  logoutBtn: { 
+    backgroundColor: 'transparent', 
+    color: '#f6465d', 
+    border: '1px solid #f6465d', 
+    padding: '8px 14px', 
+    borderRadius: '8px', 
+    fontWeight: '600', 
+    cursor: 'pointer' 
+  },
+  dashboardGrid: { 
+    display: 'grid', 
+    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+    gap: '20px' 
+  },
+  card: { 
+    backgroundColor: '#1e2329', 
+    borderRadius: '12px', 
+    padding: '16px', 
+    border: '1px solid #2b313a' 
+  },
+  notificationBanner: { 
+    backgroundColor: '#0ecb8122', 
+    color: '#0ecb81', 
+    border: '1px solid #0ecb81', 
+    padding: '12px 16px', 
+    borderRadius: '10px', 
+    marginBottom: '20px', 
+    fontWeight: '600' 
+  }
 };
