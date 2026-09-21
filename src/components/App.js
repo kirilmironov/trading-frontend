@@ -95,6 +95,26 @@ export default function App() {
     return () => { client.deactivate(); };
   }, [user]);
 
+  const handleDeposit = () => {
+    const amountStr = prompt('Enter deposit amount ($):', '1000');
+    if (!amountStr) return;
+
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid amount greater than 0.');
+      return;
+    }
+
+    axios.post(`${API_BASE}/users/deposit?username=${user.username}&amount=${amount}`)
+      .then((res) => {
+        triggerNotification(res.data.message || `Successfully deposited $${amount.toFixed(2)}`);
+      })
+      .catch((err) => {
+        const errMsg = err.response?.data?.message || err.response?.data || 'Deposit failed';
+        alert(errMsg);
+      });
+  };
+
   const handleCancelOrder = (orderId) => {
     axios
       .delete(`${API_BASE}/orders/${orderId}`)
@@ -128,13 +148,18 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+        {/* Задържане на баланса и бутоните вдясно */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto' }}>
           <div style={styles.balanceCard}>
-            <span style={{ fontSize: '12px', color: '#848e9c', fontWeight: '600' }}>BALANCE</span>
-            <span style={{ fontSize: '18px', fontWeight: '700', color: '#f0b90b' }}>
+            <span style={{ fontSize: '11px', color: '#848e9c', fontWeight: '600' }}>BALANCE</span>
+            <span style={{ fontSize: '17px', fontWeight: '700', color: '#f0b90b' }}>
               ${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
+
+          <button onClick={handleDeposit} style={styles.depositBtn}>
+            + Deposit
+          </button>
 
           <button onClick={() => { localStorage.removeItem('user'); setUser(null); }} style={styles.logoutBtn}>
             Log Out
@@ -189,10 +214,7 @@ const styles = {
   },
   header: { 
     display: 'flex', 
-    justifyContent: 'space-between', 
     alignItems: 'center', 
-    flexWrap: 'wrap',
-    gap: '12px',
     backgroundColor: '#1e2329', 
     padding: '12px 16px', 
     borderRadius: '12px', 
@@ -207,7 +229,7 @@ const styles = {
     borderRadius: '8px', 
     display: 'flex', 
     alignItems: 'center', 
-    justifyContent: 'center', 
+    justify: 'center', 
     fontSize: '18px', 
     fontWeight: 'bold' 
   },
@@ -218,6 +240,17 @@ const styles = {
     backgroundColor: '#2b313a', 
     padding: '6px 12px', 
     borderRadius: '8px' 
+  },
+  depositBtn: {
+    backgroundColor: '#0ecb81',
+    color: '#ffffff',
+    border: 'none',
+    padding: '8px 14px',
+    borderRadius: '8px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    fontSize: '13px',
+    transition: 'opacity 0.2s'
   },
   logoutBtn: { 
     backgroundColor: 'transparent', 
