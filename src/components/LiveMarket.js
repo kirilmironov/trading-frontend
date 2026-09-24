@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 export default function LiveMarket({ stocks, onSelectSymbol }) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const stockList = Object.values(stocks);
+  const stockList = Object.values(stocks || {});
   const filteredStocks = stockList.filter(
     (s) =>
       s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -24,31 +24,36 @@ export default function LiveMarket({ stocks, onSelectSymbol }) {
       </div>
 
       <div style={styles.listContainer}>
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>ASSET</th>
-              <th style={styles.thRight}>LAST PRICE</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredStocks.map((stock) => (
-              <tr 
-                key={stock.symbol} 
-                onClick={() => onSelectSymbol(stock.symbol)} 
-                style={styles.tr}
-              >
-                <td style={styles.td}>
-                  <div style={{ fontWeight: '700', color: '#eaecef', fontSize: '14px' }}>{stock.symbol}</div>
-                  <div style={{ fontSize: '12px', color: '#848e9c', marginTop: '2px' }}>{stock.name}</div>
-                </td>
-                <td style={styles.tdRight}>
-                  ${parseFloat(stock.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-                </td>
+        {filteredStocks.length === 0 ? (
+          <div style={styles.emptyState}>No assets found</div>
+        ) : (
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>ASSET</th>
+                <th style={styles.thRight}>LAST PRICE</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredStocks.map((stock) => (
+                <tr 
+                  key={stock.symbol} 
+                  onClick={() => onSelectSymbol(stock.symbol)} 
+                  style={styles.tr}
+                  className="market-row"
+                >
+                  <td style={styles.td}>
+                    <div style={{ fontWeight: '700', color: '#eaecef', fontSize: '14px' }}>{stock.symbol}</div>
+                    <div style={{ fontSize: '12px', color: '#848e9c', marginTop: '2px' }}>{stock.name}</div>
+                  </td>
+                  <td style={styles.tdRight}>
+                    ${parseFloat(stock.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );
@@ -64,7 +69,7 @@ const styles = {
   },
   header: { 
     display: 'flex', 
-    justify: 'space-between', 
+    justifyContent: 'space-between', // Коригирано от justify
     alignItems: 'center', 
     marginBottom: '20px' 
   },
@@ -82,12 +87,18 @@ const styles = {
   listContainer: { 
     maxHeight: '520px', 
     overflowY: 'auto',
-    paddingRight: '12px' // Предотвратява застъпването със скролбара
+    paddingRight: '6px'
+  },
+  emptyState: {
+    textAlign: 'center',
+    color: '#848e9c',
+    padding: '20px 0',
+    fontSize: '14px'
   },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: { textAlign: 'left', fontSize: '11px', color: '#848e9c', paddingBottom: '14px', fontWeight: '600', letterSpacing: '0.5px' },
   thRight: { textAlign: 'right', fontSize: '11px', color: '#848e9c', paddingBottom: '14px', fontWeight: '600', letterSpacing: '0.5px' },
-  tr: { borderTop: '1px solid #2b313a', cursor: 'pointer' },
-  td: { padding: '16px 0' },
-  tdRight: { padding: '16px 0', textAlign: 'right', color: '#3b82f6', fontWeight: '700', fontSize: '15px' }
+  tr: { borderTop: '1px solid #2b313a', cursor: 'pointer', transition: 'background-color 0.2s' },
+  td: { padding: '14px 0' },
+  tdRight: { padding: '14px 0', textAlign: 'right', color: '#0ecb81', fontWeight: '700', fontSize: '15px' }
 };

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-// Използваме същата логика за автоматично разпознаване на средата, както в App.js
 const API_BASE = window.location.hostname === 'localhost'
   ? (process.env.REACT_APP_API_BASE || 'http://localhost:8080/api')
   : 'https://trading-backend-5s2w.onrender.com/api';
@@ -11,36 +10,60 @@ export default function Auth({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
 
-    if (!username || !password) {
+    if (!username.trim() || !password.trim()) {
       setError('Please fill in all fields');
       return;
     }
 
+    setLoading(true);
     const endpoint = isLogin ? '/auth/login' : '/auth/register';
 
     axios
-      .post(`${API_BASE}${endpoint}`, { username, password })
+      .post(`${API_BASE}${endpoint}`, { username: username.trim(), password })
       .then((res) => {
-        const userData = res.data;
-        localStorage.setItem('user', JSON.stringify(userData));
-        onLoginSuccess(userData);
+        let userData = res.data;
+
+        if (typeof userData === 'string') {
+          userData = { username: username.trim() };
+        }
+
+        // Вземаме id на потребителя от бекенда, за да нямаме 400 Bad Request
+        if (!userData.id) {
+          axios.get(`${API_BASE}/users/username/${username.trim()}`)
+            .then((userRes) => {
+              const fullUserData = { ...userData, ...userRes.data };
+              localStorage.setItem('user', JSON.stringify(fullUserData));
+              onLoginSuccess(fullUserData);
+            })
+            .catch(() => {
+              localStorage.setItem('user', JSON.stringify(userData));
+              onLoginSuccess(userData);
+            });
+        } else {
+          localStorage.setItem('user', JSON.stringify(userData));
+          onLoginSuccess(userData);
+        }
       })
       .catch((err) => {
-        const msg = err.response?.data?.message || err.response?.data || 'Authentication failed';
+        const msg = err.response?.data?.message || 
+                    (typeof err.response?.data === 'string' ? err.response.data : null) || 
+                    'Authentication failed';
         setError(msg);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   };
 
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        
-        {/* Lightning Icon Header */}
         <div style={styles.iconBadge}>⚡</div>
 
         <h2 style={styles.title}>{isLogin ? 'Welcome Back' : 'Create Account'}</h2>
@@ -48,7 +71,7 @@ export default function Auth({ onLoginSuccess }) {
           {isLogin ? 'Sign in to access your trading dashboard' : 'Enter your details to get started'}
         </p>
 
-        {error && <div style={styles.errorBanner}>{error}</div>}
+        {error && <div style={styles.errorBanner}>⚠️ {error}</div>}
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div>
@@ -59,6 +82,8 @@ export default function Auth({ onLoginSuccess }) {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               style={styles.input}
+              disabled={loading}
+              autoComplete="username"
             />
           </div>
 
@@ -70,11 +95,21 @@ export default function Auth({ onLoginSuccess }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={styles.input}
+              disabled={loading}
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
             />
           </div>
 
-          <button type="submit" style={styles.submitBtn}>
-            {isLogin ? 'Sign In' : 'Sign Up'}
+          <button 
+            type="submit" 
+            style={{ 
+              ...styles.submitBtn, 
+              opacity: loading ? 0.7 : 1, 
+              cursor: loading ? 'not-allowed' : 'pointer' 
+            }}
+            disabled={loading}
+          >
+            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
           </button>
         </form>
 
@@ -89,11 +124,11 @@ export default function Auth({ onLoginSuccess }) {
               setError('');
             }}
             style={styles.switchBtn}
+            disabled={loading}
           >
             {isLogin ? 'Sign up' : 'Sign in'}
           </button>
         </div>
-
       </div>
     </div>
   );
@@ -106,7 +141,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#121214',
-    padding: '16px', // Пад за мобилен екран
+    padding: '16px',
     boxSizing: 'border-box',
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   },
@@ -115,7 +150,7 @@ const styles = {
     maxWidth: '400px',
     backgroundColor: '#1e2329',
     borderRadius: '16px',
-    padding: '32px 24px', // Оптимизирани отстъпи
+    padding: '32px 24px',
     border: '1px solid #2b313a',
     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
     textAlign: 'center',
@@ -144,6 +179,7 @@ const styles = {
     fontSize: '13px',
     marginBottom: '20px',
     border: '1px solid rgba(246, 70, 93, 0.3)',
+    textAlign: 'left',
   },
   form: {
     display: 'flex',
@@ -168,6 +204,7 @@ const styles = {
     fontSize: '14px',
     outline: 'none',
     boxSizing: 'border-box',
+    transition: 'border-color 0.2s',
   },
   submitBtn: {
     width: '100%',
@@ -178,8 +215,8 @@ const styles = {
     borderRadius: '8px',
     fontWeight: '700',
     fontSize: '15px',
-    cursor: 'pointer',
     marginTop: '8px',
+    transition: 'background-color 0.2s, opacity 0.2s',
   },
   footer: {
     marginTop: '24px',

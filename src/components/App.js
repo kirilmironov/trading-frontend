@@ -8,6 +8,7 @@ import OrderForm from './OrderForm';
 import LiveMarket from './LiveMarket';
 import Portfolio from './Portfolio';
 import OrderHistory from './OrderHistory';
+import PositionsTable from './PositionsTable';
 import '../App.css';
 
 const API_BASE = window.location.hostname === 'localhost'
@@ -22,6 +23,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [stocks, setStocks] = useState({});
   const [orders, setOrders] = useState([]);
+  const [positions, setPositions] = useState([]);
   const [selectedStock, setSelectedStock] = useState('BTCUSDC');
   const [notification, setNotification] = useState('');
   const [balance, setBalance] = useState(0);
@@ -36,38 +38,58 @@ export default function App() {
     if (savedUser) setUser(JSON.parse(savedUser));
   }, []);
 
+  // 1. Вземане на баланса строго по userId
   const fetchUserData = () => {
     const currentUser = userRef.current;
-    if (!currentUser?.username) return;
-    axios.get(`${API_BASE}/auth/user/${currentUser.username}`)
+    if (!currentUser?.id) return;
+    axios.get(`${API_BASE}/users/balance?userId=${currentUser.id}`)
       .then((res) => {
         if (res.data?.balance !== undefined) {
           setBalance(res.data.balance);
           localStorage.setItem('user', JSON.stringify({ ...currentUser, balance: res.data.balance }));
         }
-      });
+      })
+      .catch((err) => console.error('Error fetching user data:', err));
   };
 
+  // 2. Вземане на история на поръчките строго по userId
   const fetchOrders = () => {
     const currentUser = userRef.current;
-    if (!currentUser?.username) return;
-    axios.get(`${API_BASE}/orders/${currentUser.username}`).then((res) => setOrders(res.data.reverse()));
+    if (!currentUser?.id) return;
+
+    axios.get(`${API_BASE}/orders/user/${currentUser.id}`)
+      .then((res) => setOrders(res.data.reverse()))
+      .catch((err) => console.error('Error fetching orders:', err));
+  };
+
+  // 3. Вземане на отворените позиции строго по userId
+  const fetchPositions = () => {
+    const currentUser = userRef.current;
+    if (!currentUser?.id) return;
+    
+    axios.get(`${API_BASE}/positions/open?userId=${currentUser.id}`)
+      .then((res) => setPositions(res.data))
+      .catch((err) => console.error('Error fetching positions:', err));
   };
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
     fetchUserData();
     fetchOrders();
+    fetchPositions();
 
-    axios.get(`${API_BASE}/stocks`).then((res) => {
-      const initialMap = {};
-      res.data.forEach((s) => (initialMap[s.symbol] = s));
-      setStocks(initialMap);
-    });
+    axios.get(`${API_BASE}/stocks`)
+      .then((res) => {
+        const initialMap = {};
+        res.data.forEach((s) => (initialMap[s.symbol] = s));
+        setStocks(initialMap);
+      })
+      .catch((err) => console.error('Error fetching stocks:', err));
   }, [user]);
 
+  // 4. WebSocket абонаменти строго по userId
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
     const client = new Client({
       webSocketFactory: () => new SockJS(WS_URL),
@@ -83,18 +105,32 @@ export default function App() {
         client.subscribe('/topic/orders', (msg) => {
           if (!msg.body) return;
           const newOrder = JSON.parse(msg.body);
-          if (newOrder.user?.username === userRef.current?.username) {
+          if (newOrder.user?.id === userRef.current?.id) {
             fetchOrders();
             fetchUserData();
+            fetchPositions();
+          }
+        });
+
+        client.subscribe(`/topic/user/${user.id}/balance`, (msg) => {
+          if (!msg.body) return;
+          const data = JSON.parse(msg.body);
+          if (data.balance !== undefined) {
+            setBalance(data.balance);
           }
         });
       },
     });
 
     client.activate();
-    return () => { client.deactivate(); };
+    return () => { 
+      if (client.active) {
+        client.deactivate(); 
+      }
+    };
   }, [user]);
 
+  // 5. Депозит строго по userId
   const handleDeposit = () => {
     const amountStr = prompt('Enter deposit amount ($):', '1000');
     if (!amountStr) return;
@@ -105,7 +141,7 @@ export default function App() {
       return;
     }
 
-    axios.post(`${API_BASE}/users/deposit?username=${user.username}&amount=${amount}`)
+    axios.post(`${API_BASE}/users/deposit?userId=${user.id}&amount=${amount}`)
       .then((res) => {
         triggerNotification(res.data.message || `Successfully deposited $${amount.toFixed(2)}`);
       })
@@ -127,10 +163,25 @@ export default function App() {
       });
   };
 
+  const handleClosePosition = (positionId, markPrice) => {
+    axios
+      .post(`${API_BASE}/positions/close/${positionId}?currentPrice=${markPrice}`)
+      .then(() => {
+        triggerNotification(`Position #${positionId} closed successfully.`);
+        fetchPositions();
+        fetchUserData();
+      })
+      .catch((err) => {
+        const errMsg = err.response?.data?.message || err.response?.data || 'Error closing position';
+        alert(errMsg);
+      });
+  };
+
   const triggerNotification = (msg) => {
     setNotification(msg);
     fetchUserData();
     fetchOrders();
+    fetchPositions();
     setTimeout(() => setNotification(''), 4000);
   };
 
@@ -148,7 +199,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Задържане на баланса и бутоните вдясно */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto' }}>
           <div style={styles.balanceCard}>
             <span style={{ fontSize: '11px', color: '#848e9c', fontWeight: '600' }}>BALANCE</span>
@@ -170,12 +220,13 @@ export default function App() {
       {/* Notification Banner */}
       {notification && <div style={styles.notificationBanner}>✅ {notification}</div>}
 
-      {/* Dashboard Grid - Адаптивна решетка */}
+      {/* Dashboard Grid */}
       <div style={styles.dashboardGrid}>
         
         {/* Лява колона */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <Portfolio orders={orders} stocks={stocks} />
+          {/* Portfolio разчита САМО на отворените позиции */}
+          <Portfolio positions={positions} stocks={stocks} />
 
           <div style={styles.card}>
             <PriceChart symbol={selectedStock} currentPrice={stocks[selectedStock]?.price || 0} />
@@ -185,7 +236,7 @@ export default function App() {
             stocks={stocks} 
             selectedStock={selectedStock} 
             setSelectedStock={setSelectedStock} 
-            username={user.username} 
+            userId={user.id} 
             API_BASE={API_BASE} 
             onSuccess={triggerNotification} 
           />
@@ -195,7 +246,16 @@ export default function App() {
         <LiveMarket stocks={stocks} onSelectSymbol={(sym) => setSelectedStock(sym)} />
       </div>
 
-      {/* Долна секция: История на поръчките */}
+      {/* Отворени позиции */}
+      <div style={{ marginTop: '20px' }}>
+        <PositionsTable 
+          positions={positions} 
+          stocks={stocks} 
+          onClosePosition={handleClosePosition} 
+        />
+      </div>
+
+      {/* История на поръчките */}
       <div style={{ marginTop: '20px' }}>
         <OrderHistory orders={orders} onCancelOrder={handleCancelOrder} />
       </div>
@@ -229,7 +289,7 @@ const styles = {
     borderRadius: '8px', 
     display: 'flex', 
     alignItems: 'center', 
-    justify: 'center', 
+    justifyContent: 'center', 
     fontSize: '18px', 
     fontWeight: 'bold' 
   },

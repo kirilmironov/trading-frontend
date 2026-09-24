@@ -7,21 +7,24 @@ export default function PriceChart({ symbol, currentPrice }) {
   const candlestickSeriesRef = useRef(null);
   const lastBarRef = useRef(null);
 
+  // Почистваме символа за Binance API (напр. BTC-USDT -> BTCUSDT)
+  const cleanSymbol = symbol ? symbol.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : '';
+
   // 1. Инициализация на графиката и зареждане на историята от Binance
   useEffect(() => {
-    if (!chartContainerRef.current || !symbol) return;
+    if (!chartContainerRef.current || !cleanSymbol) return;
 
     lastBarRef.current = null;
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#181a20' }, // Тъмносив/черен фон
-        textColor: '#848e9c', // Светлосив цвят за цифрите и скалите
+        background: { type: ColorType.Solid, color: '#181a20' },
+        textColor: '#848e9c',
       },
       width: chartContainerRef.current.clientWidth,
       height: 350,
       grid: {
-        vertLines: { color: '#2b313a' }, // Тъмни линии на решетката
+        vertLines: { color: '#2b313a' },
         horzLines: { color: '#2b313a' },
       },
       rightPriceScale: {
@@ -31,7 +34,6 @@ export default function PriceChart({ symbol, currentPrice }) {
         borderColor: '#2b313a',
         timeVisible: true,
         secondsVisible: false,
-        // Форматираме UTC timestamp-а към локалното време на потребителя
         tickMarkFormatter: (time) => {
           const date = new Date(time * 1000);
           return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -45,23 +47,31 @@ export default function PriceChart({ symbol, currentPrice }) {
       },
     });
 
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#0ecb81',       // Ярко зелено за бичи свещи
-      downColor: '#f6465d',     // Червено за мечи свещи
+    // Съвместимост между v4 и v5 на lightweight-charts
+    const seriesOptions = {
+      upColor: '#0ecb81',
+      downColor: '#f6465d',
       borderVisible: false,
       wickUpColor: '#0ecb81',
       wickDownColor: '#f6465d',
-    });
+    };
+
+    const candlestickSeries = typeof chart.addSeries === 'function'
+      ? chart.addSeries(CandlestickSeries, seriesOptions)
+      : chart.addCandlestickSeries(seriesOptions);
 
     chartRef.current = chart;
     candlestickSeriesRef.current = candlestickSeries;
 
     const controller = new AbortController();
 
-    fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1m&limit=100`, {
+    fetch(`https://api.binance.com/api/v3/klines?symbol=${cleanSymbol}&interval=1m&limit=100`, {
       signal: controller.signal,
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Binance API error: ${res.statusText}`);
+        return res.json();
+      })
       .then((data) => {
         if (!Array.isArray(data)) return;
 
@@ -85,22 +95,27 @@ export default function PriceChart({ symbol, currentPrice }) {
         }
       });
 
-    const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+    // Автоматично преоразмеряване с ResizeObserver
+    const resizeObserver = new ResizeObserver((entries) => {
+      if (!entries || entries.length === 0) return;
+      const { width } = entries[0].contentRect;
+      if (chartRef.current && width > 0) {
+        chartRef.current.applyOptions({ width });
       }
-    };
+    });
 
-    window.addEventListener('resize', handleResize);
+    resizeObserver.observe(chartContainerRef.current);
 
     return () => {
       controller.abort();
-      window.removeEventListener('resize', handleResize);
-      chart.remove();
-      chartRef.current = null;
+      resizeObserver.disconnect();
+      if (chartRef.current) {
+        chartRef.current.remove();
+        chartRef.current = null;
+      }
       candlestickSeriesRef.current = null;
     };
-  }, [symbol]);
+  }, [cleanSymbol]);
 
   // 2. Реално време: Обновяване на свещта при всяка цена от WebSocket
   useEffect(() => {
@@ -157,7 +172,7 @@ export default function PriceChart({ symbol, currentPrice }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
         <h4 style={{ margin: 0, fontSize: '15px', color: '#eaecef' }}>📈 {symbol} Real-Time Chart</h4>
         <span style={{ fontSize: '14px', fontWeight: '700', color: '#0ecb81' }}>
-          {!isNaN(numericPrice) ? `$${numericPrice.toFixed(2)}` : '—'}
+          {!isNaN(numericPrice) ? `$${numericPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}` : '—'}
         </span>
       </div>
       <div ref={chartContainerRef} style={{ width: '100%', borderRadius: '12px', overflow: 'hidden' }} />
