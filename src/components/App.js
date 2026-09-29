@@ -1,19 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import api, { loadCsrfToken } from '../api';
+import api, { API_BASE, WS_URL, loadCsrfToken } from '../api';
 import Auth from './Auth';
 import SpotTradingPage from '../features/spot/SpotTradingPage';
 import useSpotTrading from '../features/spot/useSpotTrading';
 import FuturesTradingPage from '../features/futures/FuturesTradingPage';
 import useFuturesTrading from '../features/futures/useFuturesTrading';
 import '../App.css';
-
-const API_BASE = window.location.hostname === 'localhost'
-  ? (process.env.REACT_APP_API_BASE || 'http://localhost:8080/api')
-  : 'https://trading-backend-5s2w.onrender.com/api';
-
-const WS_URL = window.location.hostname === 'localhost'
-  ? 'http://localhost:8080/ws-trading'
-  : 'https://trading-backend-5s2w.onrender.com/ws-trading';
 
 export default function App() {
   const [user, setUser] = useState(null);

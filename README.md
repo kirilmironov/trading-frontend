@@ -1,5 +1,15 @@
 # Getting Started with Create React App
 
+## Render Deployment
+
+Deploy this project as a Render **Web Service**, not a Static Site.
+
+- Build command: `npm ci && npm run build`
+- Start command: `npm run serve:production`
+- Environment variable: `BACKEND_URL` set to the backend Render service URL, without a trailing slash
+
+After creating the frontend Web Service, set `FRONTEND_ORIGIN` on the backend to the exact public frontend origin, for example `https://trading-frontend-proxy.onrender.com` (no path or trailing slash). The frontend service serves the React build and proxies `/api` and `/ws-trading` to the backend, so the browser uses only the frontend URL.
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts

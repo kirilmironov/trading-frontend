@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import api, { loadCsrfToken } from '../api';
-
-const API_BASE = window.location.hostname === 'localhost'
-  ? (process.env.REACT_APP_API_BASE || 'http://localhost:8080/api')
-  : 'https://trading-backend-5s2w.onrender.com/api';
+import api, { API_BASE, loadCsrfToken } from '../api';
 
 export default function Auth({ onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);

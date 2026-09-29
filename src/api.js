@@ -1,5 +1,15 @@
 import axios from 'axios';
 
+const isLocalDevelopment = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+export const API_BASE = isLocalDevelopment
+  ? (process.env.REACT_APP_API_BASE || 'http://localhost:8080/api')
+  : '/api';
+
+export const WS_URL = isLocalDevelopment
+  ? 'http://localhost:8080/ws-trading'
+  : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws-trading`;
+
 const api = axios.create({
   withCredentials: true,
   xsrfCookieName: 'XSRF-TOKEN',
