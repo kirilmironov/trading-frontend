@@ -151,7 +151,7 @@ const styles = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' },
   title: { margin: 0, fontSize: '18px', fontWeight: '700', color: '#eaecef' },
   filterGroup: { display: 'flex', gap: '6px', backgroundColor: '#121214', padding: '4px', borderRadius: '8px' },
-  filterBtn: { backgroundColor: 'none', border: 'none', color: '#848e9c', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' },
+  filterBtn: { backgroundColor: '#2b313a', border: 'none', color: '#848e9c', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' },
   filterBtnActive: { backgroundColor: '#2b313a', color: '#eaecef' },
   table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left' },
   thRow: { borderBottom: '1px solid #2b313a' },

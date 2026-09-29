@@ -1,14 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
-import axios from 'axios';
+import React, { useEffect, useState } from 'react';
+import api, { loadCsrfToken } from '../api';
 import Auth from './Auth';
-import PriceChart from './PriceChart';
-import OrderForm from './OrderForm';
-import LiveMarket from './LiveMarket';
-import Portfolio from './Portfolio';
-import OrderHistory from './OrderHistory';
-import PositionsTable from './PositionsTable';
+import SpotTradingPage from '../features/spot/SpotTradingPage';
+import useSpotTrading from '../features/spot/useSpotTrading';
+import FuturesTradingPage from '../features/futures/FuturesTradingPage';
+import useFuturesTrading from '../features/futures/useFuturesTrading';
 import '../App.css';
 
 const API_BASE = window.location.hostname === 'localhost'
@@ -21,116 +17,27 @@ const WS_URL = window.location.hostname === 'localhost'
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [stocks, setStocks] = useState({});
-  const [orders, setOrders] = useState([]);
-  const [positions, setPositions] = useState([]);
-  const [selectedStock, setSelectedStock] = useState('BTCUSDC');
   const [notification, setNotification] = useState('');
-  const [balance, setBalance] = useState(0);
-
-  const userRef = useRef(user);
-  useEffect(() => { 
-    userRef.current = user; 
-  }, [user]);
+  const [marketMode, setMarketMode] = useState('SPOT');
+  const spot = useSpotTrading({ userId: user?.id, apiBase: API_BASE, websocketUrl: WS_URL });
+  const futures = useFuturesTrading({ userId: user?.id, apiBase: API_BASE, stocks: spot.stocks, onWalletChanged: spot.refreshSpotData });
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) setUser(JSON.parse(savedUser));
+    let active = true;
+    loadCsrfToken(API_BASE)
+      .then(() => api.get(`${API_BASE}/auth/me`))
+      .then((response) => {
+        if (!active) return;
+        localStorage.setItem('user', JSON.stringify(response.data));
+        setUser(response.data);
+      })
+      .catch(() => {
+        localStorage.removeItem('user');
+      });
+
+    return () => { active = false; };
   }, []);
 
-  // 1. Вземане на баланса строго по userId
-  const fetchUserData = () => {
-    const currentUser = userRef.current;
-    if (!currentUser?.id) return;
-    axios.get(`${API_BASE}/users/balance?userId=${currentUser.id}`)
-      .then((res) => {
-        if (res.data?.balance !== undefined) {
-          setBalance(res.data.balance);
-          localStorage.setItem('user', JSON.stringify({ ...currentUser, balance: res.data.balance }));
-        }
-      })
-      .catch((err) => console.error('Error fetching user data:', err));
-  };
-
-  // 2. Вземане на история на поръчките строго по userId
-  const fetchOrders = () => {
-    const currentUser = userRef.current;
-    if (!currentUser?.id) return;
-
-    axios.get(`${API_BASE}/orders/user/${currentUser.id}`)
-      .then((res) => setOrders(res.data.reverse()))
-      .catch((err) => console.error('Error fetching orders:', err));
-  };
-
-  // 3. Вземане на отворените позиции строго по userId
-  const fetchPositions = () => {
-    const currentUser = userRef.current;
-    if (!currentUser?.id) return;
-    
-    axios.get(`${API_BASE}/positions/open?userId=${currentUser.id}`)
-      .then((res) => setPositions(res.data))
-      .catch((err) => console.error('Error fetching positions:', err));
-  };
-
-  useEffect(() => {
-    if (!user?.id) return;
-    fetchUserData();
-    fetchOrders();
-    fetchPositions();
-
-    axios.get(`${API_BASE}/stocks`)
-      .then((res) => {
-        const initialMap = {};
-        res.data.forEach((s) => (initialMap[s.symbol] = s));
-        setStocks(initialMap);
-      })
-      .catch((err) => console.error('Error fetching stocks:', err));
-  }, [user]);
-
-  // 4. WebSocket абонаменти строго по userId
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const client = new Client({
-      webSocketFactory: () => new SockJS(WS_URL),
-      reconnectDelay: 3000,
-      debug: () => {},
-      onConnect: () => {
-        client.subscribe('/topic/ticks', (msg) => {
-          if (!msg.body) return;
-          const updatedStock = JSON.parse(msg.body);
-          setStocks((prev) => ({ ...prev, [updatedStock.symbol]: updatedStock }));
-        });
-
-        client.subscribe('/topic/orders', (msg) => {
-          if (!msg.body) return;
-          const newOrder = JSON.parse(msg.body);
-          if (newOrder.user?.id === userRef.current?.id) {
-            fetchOrders();
-            fetchUserData();
-            fetchPositions();
-          }
-        });
-
-        client.subscribe(`/topic/user/${user.id}/balance`, (msg) => {
-          if (!msg.body) return;
-          const data = JSON.parse(msg.body);
-          if (data.balance !== undefined) {
-            setBalance(data.balance);
-          }
-        });
-      },
-    });
-
-    client.activate();
-    return () => { 
-      if (client.active) {
-        client.deactivate(); 
-      }
-    };
-  }, [user]);
-
-  // 5. Депозит строго по userId
   const handleDeposit = () => {
     const amountStr = prompt('Enter deposit amount ($):', '1000');
     if (!amountStr) return;
@@ -141,9 +48,9 @@ export default function App() {
       return;
     }
 
-    axios.post(`${API_BASE}/users/deposit?userId=${user.id}&amount=${amount}`)
+    spot.deposit(amount)
       .then((res) => {
-        triggerNotification(res.data.message || `Successfully deposited $${amount.toFixed(2)}`);
+        triggerNotification(res.message || `Successfully deposited $${amount.toFixed(2)}`);
       })
       .catch((err) => {
         const errMsg = err.response?.data?.message || err.response?.data || 'Deposit failed';
@@ -152,8 +59,7 @@ export default function App() {
   };
 
   const handleCancelOrder = (orderId) => {
-    axios
-      .delete(`${API_BASE}/orders/${orderId}`)
+    spot.cancelOrder(orderId)
       .then(() => {
         triggerNotification(`Order #${orderId} cancelled successfully.`);
       })
@@ -163,25 +69,8 @@ export default function App() {
       });
   };
 
-  const handleClosePosition = (positionId, markPrice) => {
-    axios
-      .post(`${API_BASE}/positions/close/${positionId}?currentPrice=${markPrice}`)
-      .then(() => {
-        triggerNotification(`Position #${positionId} closed successfully.`);
-        fetchPositions();
-        fetchUserData();
-      })
-      .catch((err) => {
-        const errMsg = err.response?.data?.message || err.response?.data || 'Error closing position';
-        alert(errMsg);
-      });
-  };
-
   const triggerNotification = (msg) => {
     setNotification(msg);
-    fetchUserData();
-    fetchOrders();
-    fetchPositions();
     setTimeout(() => setNotification(''), 4000);
   };
 
@@ -200,10 +89,24 @@ export default function App() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto' }}>
+          <div style={styles.marketModes} aria-label="Market mode">
+            {['SPOT', 'FUTURES'].map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setMarketMode(mode)}
+                aria-pressed={marketMode === mode}
+                style={{ ...styles.modeButton, ...(marketMode === mode ? styles.modeButtonActive : {}) }}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+
           <div style={styles.balanceCard}>
-            <span style={{ fontSize: '11px', color: '#848e9c', fontWeight: '600' }}>BALANCE</span>
+            <span style={{ fontSize: '11px', color: '#848e9c', fontWeight: '600' }}>SPOT BALANCE</span>
             <span style={{ fontSize: '17px', fontWeight: '700', color: '#f0b90b' }}>
-              ${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${spot.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
 
@@ -211,7 +114,13 @@ export default function App() {
             + Deposit
           </button>
 
-          <button onClick={() => { localStorage.removeItem('user'); setUser(null); }} style={styles.logoutBtn}>
+          <button onClick={() => {
+            api.post(`${API_BASE}/auth/logout`)
+              .finally(() => {
+                localStorage.removeItem('user');
+                setUser(null);
+              });
+          }} style={styles.logoutBtn}>
             Log Out
           </button>
         </div>
@@ -220,45 +129,23 @@ export default function App() {
       {/* Notification Banner */}
       {notification && <div style={styles.notificationBanner}>✅ {notification}</div>}
 
-      {/* Dashboard Grid */}
-      <div style={styles.dashboardGrid}>
-        
-        {/* Лява колона */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Portfolio разчита САМО на отворените позиции */}
-          <Portfolio positions={positions} stocks={stocks} />
-
-          <div style={styles.card}>
-            <PriceChart symbol={selectedStock} currentPrice={stocks[selectedStock]?.price || 0} />
-          </div>
-
-          <OrderForm 
-            stocks={stocks} 
-            selectedStock={selectedStock} 
-            setSelectedStock={setSelectedStock} 
-            userId={user.id} 
-            API_BASE={API_BASE} 
-            onSuccess={triggerNotification} 
-          />
-        </div>
-
-        {/* Дясна колона */}
-        <LiveMarket stocks={stocks} onSelectSymbol={(sym) => setSelectedStock(sym)} />
-      </div>
-
-      {/* Отворени позиции */}
-      <div style={{ marginTop: '20px' }}>
-        <PositionsTable 
-          positions={positions} 
-          stocks={stocks} 
-          onClosePosition={handleClosePosition} 
+      {marketMode === 'SPOT' ? (
+        <SpotTradingPage
+          stocks={spot.stocks}
+          orders={spot.orders}
+          ocoOrders={spot.ocoOrders}
+          positions={spot.positions}
+          selectedStock={spot.selectedStock}
+          setSelectedStock={spot.setSelectedStock}
+          onPlaceOrder={spot.placeOrder}
+          onPlaceOcoOrder={spot.placeOcoOrder}
+          onCancelOrder={handleCancelOrder}
+          onCancelOcoOrder={spot.cancelOcoOrder}
+          onSuccess={triggerNotification}
         />
-      </div>
-
-      {/* История на поръчките */}
-      <div style={{ marginTop: '20px' }}>
-        <OrderHistory orders={orders} onCancelOrder={handleCancelOrder} />
-      </div>
+      ) : (
+        <FuturesTradingPage futures={futures} onSelectSymbol={futures.setSelectedStock} onSuccess={triggerNotification} />
+      )}
 
     </div>
   );
@@ -280,6 +167,31 @@ const styles = {
     borderRadius: '12px', 
     marginBottom: '20px', 
     border: '1px solid #2b313a' 
+  },
+  marketModes: {
+    display: 'flex',
+    gap: '4px',
+    padding: '4px',
+    backgroundColor: '#121214',
+    border: '1px solid #2b313a',
+    borderRadius: '8px',
+  },
+  modeButton: {
+    width: '88px',
+    height: '34px',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '0',
+    backgroundColor: 'transparent',
+    color: '#848e9c',
+    fontSize: '11px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    boxSizing: 'border-box',
+  },
+  modeButtonActive: {
+    backgroundColor: '#f0b90b',
+    color: '#121214',
   },
   logoBadge: { 
     width: '36px', 
@@ -320,17 +232,6 @@ const styles = {
     borderRadius: '8px', 
     fontWeight: '600', 
     cursor: 'pointer' 
-  },
-  dashboardGrid: { 
-    display: 'grid', 
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
-    gap: '20px' 
-  },
-  card: { 
-    backgroundColor: '#1e2329', 
-    borderRadius: '12px', 
-    padding: '16px', 
-    border: '1px solid #2b313a' 
   },
   notificationBanner: { 
     backgroundColor: '#0ecb8122', 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api, { loadCsrfToken } from '../api';
 
 const API_BASE = window.location.hostname === 'localhost'
   ? (process.env.REACT_APP_API_BASE || 'http://localhost:8080/api')
@@ -24,31 +24,12 @@ export default function Auth({ onLoginSuccess }) {
     setLoading(true);
     const endpoint = isLogin ? '/auth/login' : '/auth/register';
 
-    axios
-      .post(`${API_BASE}${endpoint}`, { username: username.trim(), password })
+    loadCsrfToken(API_BASE)
+      .then(() => api.post(`${API_BASE}${endpoint}`, { username: username.trim(), password }))
       .then((res) => {
-        let userData = res.data;
-
-        if (typeof userData === 'string') {
-          userData = { username: username.trim() };
-        }
-
-        // Вземаме id на потребителя от бекенда, за да нямаме 400 Bad Request
-        if (!userData.id) {
-          axios.get(`${API_BASE}/users/username/${username.trim()}`)
-            .then((userRes) => {
-              const fullUserData = { ...userData, ...userRes.data };
-              localStorage.setItem('user', JSON.stringify(fullUserData));
-              onLoginSuccess(fullUserData);
-            })
-            .catch(() => {
-              localStorage.setItem('user', JSON.stringify(userData));
-              onLoginSuccess(userData);
-            });
-        } else {
-          localStorage.setItem('user', JSON.stringify(userData));
-          onLoginSuccess(userData);
-        }
+        const userData = res.data;
+        localStorage.setItem('user', JSON.stringify(userData));
+        onLoginSuccess(userData);
       })
       .catch((err) => {
         const msg = err.response?.data?.message || 

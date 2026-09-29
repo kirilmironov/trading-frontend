@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 export default function LiveMarket({ stocks, onSelectSymbol }) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const stockList = Object.values(stocks || {});
+  const stockList = Object.values(stocks || {})
+    .sort((left, right) => left.symbol.localeCompare(right.symbol));
   const filteredStocks = stockList.filter(
     (s) =>
       s.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -23,7 +24,7 @@ export default function LiveMarket({ stocks, onSelectSymbol }) {
         />
       </div>
 
-      <div style={styles.listContainer}>
+      <div>
         {filteredStocks.length === 0 ? (
           <div style={styles.emptyState}>No assets found</div>
         ) : (
@@ -83,11 +84,6 @@ const styles = {
     fontSize: '13px', 
     outline: 'none',
     width: '140px'
-  },
-  listContainer: { 
-    maxHeight: '520px', 
-    overflowY: 'auto',
-    paddingRight: '6px'
   },
   emptyState: {
     textAlign: 'center',
