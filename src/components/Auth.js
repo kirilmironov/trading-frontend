@@ -32,9 +32,13 @@ export default function Auth({ onLoginSuccess }) {
         onLoginSuccess(userData);
       })
       .catch((err) => {
-        const msg = err.response?.data?.message || 
-                    (typeof err.response?.data === 'string' ? err.response.data : null) || 
-                    'Authentication failed';
+        const responseData = err.response?.data;
+        const responseMessage = responseData?.message ||
+          (typeof responseData === 'string' ? responseData : null);
+        const statusMessage = err.response
+          ? `HTTP ${err.response.status}${responseData?.error ? ` ${responseData.error}` : ''}${responseData?.path ? ` (${responseData.path})` : ''}`
+          : 'No response from server. Check the connection or try again later.';
+        const msg = responseMessage || statusMessage;
         setError(msg);
       })
       .finally(() => {
