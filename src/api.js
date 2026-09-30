@@ -8,7 +8,7 @@ export const API_BASE = isLocalDevelopment
 
 export const WS_URL = isLocalDevelopment
   ? 'http://localhost:8080/ws-trading'
-  : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws-trading`;
+  : `${window.location.protocol}//${window.location.host}/ws-trading`;
 
 const api = axios.create({
   withCredentials: true,
